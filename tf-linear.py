@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 
+from utils import *
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_size', default=50, type=int, help='data size')
 parser.add_argument('--num_steps', default=1000, type=int, help='number of trannig steps')
@@ -28,19 +30,6 @@ def linear_data(data_size, devi_degree):
     data = pd.DataFrame({'x': x, 'y': y})
 
     return data
-
-def split_test_set(df, frac=0.3, random=True):
-    """
-    Split DataFrame to train set and test set
-    :param df:
-    :param frac:
-    :param random:
-    :return:
-    """
-    test_size = int(len(df) * min(frac, 1))
-    if random:
-        df = df.sample(frac=1).reset_index(drop=True)
-    return df[test_size:].reset_index(drop=True), df[:test_size].reset_index(drop=True)
 
 def evaluate(train_set, test_set, W, b):
     """
@@ -145,7 +134,6 @@ def fit_estimator(data, num_steps):
     estimator = tf.estimator.LinearRegressor(feature_columns=feature_columns)
 
     train_set, test_set = split_test_set(data, frac=0.3, random=True)
-
 
     input_fn = tf.estimator.inputs.numpy_input_fn(
         {'x': train_set['x']}, train_set['y'], batch_size=4, num_epochs=None, shuffle=True
