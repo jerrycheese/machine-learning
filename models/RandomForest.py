@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import math
-
+import random
 
 class RandomForest(object):
     
@@ -12,7 +12,6 @@ class RandomForest(object):
         self.__tree_min_spacing = 0.04
         self.__tree_node_height = 0.04
         self.__tree_node_width = 0
-
 
     def train(self, X, y, feature_names):
         # build dataset =  [X, y]
@@ -44,40 +43,50 @@ class RandomForest(object):
         if not root:
             return 
 
-        W, H, a, N = self.__calcuPlotLayout(root)
-        x, y = W, H
+        size = self.__calcuTreeSize(root)
 
         fig = plt.figure()
         fig.clf()
 
         ax1 = plt.subplot(111, frameon=False)
-        self.__plotTree(ax1, root, (x, y), a, 0)
+        self.__plotTree(ax1, root, size)
         plt.show()
 
-    def __plotTree(self, ax, root, xy, a, level):
+    def __plotTree(self, ax, root, xy):
         if 'label' in root:
             # leaf
             self.__plotNode(ax, root['label'], xy, 
                 node=dict(boxstyle='circle', fc='white'))
-            return 
-        child_spacing = a[level + 1]
+            return self.__tree_node_width, self.__tree_node_height
+        
         feature_name = self.__feature_names[root['feature']['index']]
         self.__plotNode(ax, feature_name, xy)
 
+        # n_child = len(root['children'])
+        # most_left_x = xy[0] - ((n_child - 1)*(child_spacing + 0.1))/2.0
+        # y_child = xy[1] - self.__tree_level_height
+        # for i in range(n_child):
+        #     child = root['children'][i]
+        #     x_child = most_left_x + i *(child_spacing + 0.1)
+        #     xy_child = (x_child, y_child)
+        #     self.__plotArrow(ax, xy, xy_child, str(child['value']))
+        #     self.__plotTree(ax, child['node'], xy_child, a, level + 1)  
+        
+        size = root['size']
         n_child = len(root['children'])
-        most_left_x = xy[0] - ((n_child - 1)*(child_spacing + 0.1))/2.0
         y_child = xy[1] - self.__tree_level_height
+        x_child = xy[0] - size[0]/2.0
         for i in range(n_child):
             child = root['children'][i]
-            x_child = most_left_x + i *(child_spacing + 0.1)
-            xy_child = (x_child, y_child)
+            child_size = child['node']['size']
+            xy_child = (x_child + child_size[0]/2.0, y_child)
             self.__plotArrow(ax, xy, xy_child, str(child['value']))
-            self.__plotTree(ax, child['node'], xy_child, a, level + 1)
+            self.__plotTree(ax, child['node'], xy_child)
+            x_child += self.__tree_min_spacing + child_size[0]
 
     def __plotNode(self, ax, title, xy, node=None):
         if not node:
             node = dict(boxstyle='round', fc='white')
-
         return ax.annotate(title, 
                 xy=xy,
                 ha='center',
@@ -95,33 +104,27 @@ class RandomForest(object):
             xy=xy_end, xytext=xy_begin,
             va='center', ha='center',
             arrowprops=arrow)
-    
-    def __calcuPlotLayout(self, root):
-        if not root:
-            return 0
-        w, h, N = self.__tree_node_width, self.__tree_node_height, []
-        queue = [root]
 
-        # calcu the number of node at every level
-        # root is located at level `0`
-        while len(queue) > 0:
-            N.append(len(queue))
-            for i in range(N[-1]):
-                if 'children' not in queue[i]:
-                    continue
-                for child in queue[i]['children']:
-                    queue += [child['node']]
-            queue = queue[N[-1]:]
-        
-        a = [0] * len(N) # spacing of level `i`
-        a[-1] = self.__tree_min_spacing
-        for i in range(len(N) - 1, 1, -1):
-            a[i - 1] = 2*w + a[i]*(N[i]/2.0 + 1)
-        
-        # todo - consider the last level
-        W, H = a[1] + w*N[1], len(N) * (self.__tree_level_height + h)
+    def __calcuTreeSize(self, root):
+        word_width = 0.018
+        self_height = self.__tree_node_height
+        if 'label' in root:
+            self_width = len(root['label']) * word_width
+            root['size'] = (self_width, self_height)
+            return root['size']
+        self_width = len(self.__feature_names[root['feature']['index']]) * word_width
+        size = [0, 0]
+        n_child = len(root['children'])
+        for child in root['children']:
+            size_child = self.__calcuTreeSize(child['node'])
+            size[0] += size_child[0]
+            size[1] = max(size_child[1], size[1])
+        size[0] += self.__tree_min_spacing*(n_child - 1)
+        size[1] += self.__tree_level_height + self.__tree_node_height
+        size[0] = max(size[0], self_width)
+        root['size'] = size
+        return tuple(size)
 
-        return W, H, a, N
 
     def __getFeatureSpan(self, X):
         """Get all possiable values of every features in X
@@ -194,42 +197,54 @@ class RandomForest(object):
                 'index': i,
                 'span': list(set(data[:,i].tolist()))
             })
-
-        def __calcuEntropy(data):
-            y_map = self.__countOccurrence(data, -1)
-            K, m = len(y_map.keys()), len(data)
-            H = 0
-            for y, count in y_map.items():
-                r = 1.0*count/m
-                H += r*math.log2(r)
-            return -H
         
-        def __calcuIEG(data, feature):
-            D, n_D = data, len(data)
-            H_D = __calcuEntropy(D)
-
-            # calcu the condition entropy
-            feature_data = self.__splitByFeature(data, feature['index'])
-            H_D_A = 0
-            for e in feature_data:
-                Di, n_Di = e['data'], len(e['data'])
-                H_Di = __calcuEntropy(Di)
-                H_D_A += 1.0*n_Di/n_D * (-H_Di)
-            H_D_A = -H_D_A
-
-            ieg = H_D - H_D_A
-
-            return ieg
 
         max_ieg, max_ieg_feature = 0, None
 
         for f in features:
-            ieg = __calcuIEG(data, f)
+            ieg = self.__calcuIEG(data, f)
             if ieg > max_ieg:
                 max_ieg = ieg
                 max_ieg_feature = f
         
         return max_ieg_feature, max_ieg
+    
+    def __calcuEntropy(self, data):
+        y_map = self.__countOccurrence(data, -1)
+        K, m = len(y_map.keys()), len(data)
+        H = 0
+        for y, count in y_map.items():
+            r = 1.0*count/m
+            H += r*math.log2(r)
+        return -H
+
+    def __calcuIEG(self, data, feature):
+        D, n_D = data, len(data)
+        H_D = self.__calcuEntropy(D)
+
+        # calcu the condition entropy
+        feature_data = self.__splitByFeature(data, feature['index'])
+        H_D_A = 0
+        for e in feature_data:
+            Di, n_Di = e['data'], len(e['data'])
+            H_Di = self.__calcuEntropy(Di)
+            H_D_A += 1.0*n_Di/n_D * (-H_Di)
+        H_D_A = -H_D_A
+
+        ieg = H_D - H_D_A
+
+        return ieg 
+
+    def __pickFeatureByRandom(self, data, feature_indexes):
+        features = []
+        for i in feature_indexes:
+            features.append({
+                'index': i,
+                'span': list(set(data[:,i].tolist()))
+            })
+        feature = random.choice(features)
+        ieg = self.__calcuIEG(data, feature)
+        return feature, ieg
 
     def __splitByFeature(self, data, feature_index):
         feature_data = []
@@ -283,13 +298,17 @@ class RandomForest(object):
             return node
 
         # ****** key part: choose a feature to do split!
-        feature, ieg = self.__pickFeatureByIEG(data, feature_indexes)
+        # way 1: IEG
+        # feature, ieg = self.__pickFeatureByIEG(data, feature_indexes)
 
+        # way 2: Random
+        feature, ieg = self.__pickFeatureByRandom(data, feature_indexes)
+        
         if ieg < min_ieg:
             # labeled as `most_y`, which is most appeared in data
             node = {'label': most_y, 'data': data.tolist()}
             return node
-
+        
         feature_indexes = feature_indexes.copy()
         
         # split data by `feature`
