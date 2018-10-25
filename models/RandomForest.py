@@ -9,7 +9,7 @@ class RandomForest(object):
         self.__root = None
         self.__feature_names = []
         self.__tree_level_height = 0.2
-        self.__tree_min_spacing = 0.04
+        self.__tree_min_spacing = 0.01
         self.__tree_node_height = 0.04
         self.__tree_node_width = 0
 
@@ -20,12 +20,6 @@ class RandomForest(object):
             data.append(X[i] + [y[i]])
         data = np.array(data)
         
-        # feature_span, features = self.__getFeatureSpan(data[:,:-1]), []
-        # for i in range(feature_span):
-        #     features.append({
-        #         'index': i,
-        #         'span': feature_span[i]
-        #     })
         n_samples, n_col = data.shape
         feature_indexes = list(range(n_col - 1))
         root = self.__build(data, feature_indexes)
@@ -57,7 +51,7 @@ class RandomForest(object):
             # leaf
             self.__plotNode(ax, root['label'], xy, 
                 node=dict(boxstyle='circle', fc='white'))
-            return self.__tree_node_width, self.__tree_node_height
+            return 
         
         feature_name = self.__feature_names[root['feature']['index']]
         self.__plotNode(ax, feature_name, xy)
@@ -125,25 +119,6 @@ class RandomForest(object):
         root['size'] = size
         return tuple(size)
 
-
-    def __getFeatureSpan(self, X):
-        """Get all possiable values of every features in X
-        
-        Parameters
-        -----------
-        X : array-like, shape = [n_samples]
-
-        Return
-        ------
-        array-list, shape = [n_features]
-        each element is a list contains all possiable values of this features
-        """
-        n_sample, n_attr = X.shape
-        spans = [None] * n_attr
-        for i in range(n_attr):
-            spans[i] = list(set(X[:,i].tolist()))
-        return spans
-
     def __getMostY(self, data):
         """Get the label y which has the biggest number of occurrences
         
@@ -176,6 +151,38 @@ class RandomForest(object):
             occur_map[value] = arr.count(value)
         return occur_map
 
+    def __calcuEntropy(self, data):
+        y_map = self.__countOccurrence(data, -1)
+        K, m = len(y_map.keys()), len(data)
+        H = 0
+        for y, count in y_map.items():
+            r = 1.0*count/m
+            H += r*math.log2(r)
+        return -H
+
+    def __calcuContidionEntropy(self, data, feature):
+        D, n_D = data, len(data)
+
+        # calcu the condition entropy
+        feature_data = self.__splitByFeature(data, feature['index'])
+        H_D_A = 0
+        for e in feature_data:
+            Di, n_Di = e['data'], len(e['data'])
+            H_Di = self.__calcuEntropy(Di)
+            H_D_A += 1.0*n_Di/n_D * (-H_Di)
+        H_D_A = -H_D_A
+        return H_D_A
+
+    def __pickFeatureByRandom(self, data, feature_indexes):
+        features = []
+        for i in feature_indexes:
+            features.append({
+                'index': i,
+                'span': list(set(data[:,i].tolist()))
+            })
+        feature = random.choice(features)
+        return feature
+
     def __pickFeatureByIEG(self, data, feature_indexes):
         """Pick a feature, which has the highest Infomation Entropy Gain
 
@@ -197,54 +204,53 @@ class RandomForest(object):
                 'index': i,
                 'span': list(set(data[:,i].tolist()))
             })
-        
 
         max_ieg, max_ieg_feature = 0, None
+        D = data
 
         for f in features:
-            ieg = self.__calcuIEG(data, f)
+            H_D = self.__calcuEntropy(D)
+            H_D_A = self.__calcuContidionEntropy(D, f)
+            ieg = H_D - H_D_A
             if ieg > max_ieg:
                 max_ieg = ieg
                 max_ieg_feature = f
         
         return max_ieg_feature, max_ieg
     
-    def __calcuEntropy(self, data):
-        y_map = self.__countOccurrence(data, -1)
-        K, m = len(y_map.keys()), len(data)
-        H = 0
-        for y, count in y_map.items():
-            r = 1.0*count/m
-            H += r*math.log2(r)
-        return -H
-
-    def __calcuIEG(self, data, feature):
-        D, n_D = data, len(data)
-        H_D = self.__calcuEntropy(D)
-
-        # calcu the condition entropy
-        feature_data = self.__splitByFeature(data, feature['index'])
-        H_D_A = 0
-        for e in feature_data:
-            Di, n_Di = e['data'], len(e['data'])
-            H_Di = self.__calcuEntropy(Di)
-            H_D_A += 1.0*n_Di/n_D * (-H_Di)
-        H_D_A = -H_D_A
-
-        ieg = H_D - H_D_A
-
-        return ieg 
-
-    def __pickFeatureByRandom(self, data, feature_indexes):
+    def __pickFeatureByIGR(self, data, feature_indexes):
+        # calcu span
         features = []
         for i in feature_indexes:
             features.append({
                 'index': i,
                 'span': list(set(data[:,i].tolist()))
             })
-        feature = random.choice(features)
-        ieg = self.__calcuIEG(data, feature)
-        return feature, ieg
+
+        max_igr, max_igr_feature = 0, None
+        D, n_D = data, len(data)
+        for f in features:
+            H_D = self.__calcuEntropy(D)
+            H_D_A = self.__calcuContidionEntropy(D, f)
+            ieg = H_D - H_D_A
+
+            feature_data = self.__splitByFeature(data, f['index'])
+            H_A_D = 0
+            for e in feature_data:
+                Di, n_Di = e['data'], len(e['data'])
+                r = 1.0*n_Di/n_D
+                H_A_D += r*math.log2(r)
+            
+            H_A_D = -H_A_D
+            if H_A_D == 0:
+                igr = 0
+            else:
+                igr = ieg/H_A_D
+            if igr > max_igr:
+                max_igr = igr
+                max_igr_feature = f
+        
+        return max_igr_feature, max_igr
 
     def __splitByFeature(self, data, feature_index):
         feature_data = []
@@ -300,15 +306,17 @@ class RandomForest(object):
         # ****** key part: choose a feature to do split!
         # way 1: IEG
         # feature, ieg = self.__pickFeatureByIEG(data, feature_indexes)
-
+        # if ieg <= min_ieg:
+        #     # labeled as `most_y`, which is most appeared in data
+        #     node = {'label': most_y, 'data': data.tolist()}
+        #     return node
+        
         # way 2: Random
-        feature, ieg = self.__pickFeatureByRandom(data, feature_indexes)
+        feature = self.__pickFeatureByRandom(data, feature_indexes)
         
-        if ieg < min_ieg:
-            # labeled as `most_y`, which is most appeared in data
-            node = {'label': most_y, 'data': data.tolist()}
-            return node
-        
+        # way 3:entropy
+        # feature, igr = self.__pickFeatureByIGR(data, feature_indexes)
+
         feature_indexes = feature_indexes.copy()
         
         # split data by `feature`
@@ -327,7 +335,7 @@ class RandomForest(object):
             })
         node['children'] = children
         return node
-
+ 
 
 def main(argv):
     args = parser.parse_args(argv[1:])
