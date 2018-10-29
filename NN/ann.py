@@ -41,10 +41,13 @@ def forward_backward_prop(X, labels, params, dimensions):
     # ** STYLE1
     # y = sigmoid(z2)
     # cost = (-labels*np.log(y) - (1-labels)*np.log(1-y)).sum()/M
-    
+
     # ** STYLE2
     y = softmax(z2)
     cost = (-labels*np.log(y)).sum()/M
+
+    penalty = 0.00001
+    cost += penalty*(np.power(W1, 2).sum() + np.power(W2, 2).sum())/(2*M)
 
     # backward
 
@@ -52,12 +55,14 @@ def forward_backward_prop(X, labels, params, dimensions):
     # ∂cost/∂z2  shape=(M,Dy)
     d3 = (y - labels)/M
     gradW2 = np.dot(np.transpose(h), d3)
+    gradW2 += W2*penalty/M
     gradb2 = d3.sum(axis=0)
 
     # layer2 -> layer3
     # ∂cost/∂h shape=(M,H)
     d2 = np.dot(d3, np.transpose(W2)) * sigmoid_grad(h)
     gradW1 = np.dot(np.transpose(X), d2)
+    gradW1 += W1*penalty/M
     gradb1 = d2.sum(axis=0)
 
     ### Stack gradients (do not modify)
@@ -67,17 +72,29 @@ def forward_backward_prop(X, labels, params, dimensions):
     return cost, grad
 
 
-def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000):
-    params = random_params(dimensions)
-
+def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=1):
     # d = 1e-8
-    notice_len = 5000
+    notice_len = 1000
     last_cost = 99999999
 
     batch_size = min(batch_size, X.shape[0])
 
     max_iteration = int(X.shape[0]*epoch/batch_size)
+
     ofs = 0
+
+    params = []
+    random_state = np.random.RandomState(1)
+    for i in range(1, len(dimensions)):
+        params_len = (dimensions[i-1] + 1) * dimensions[i]
+        bound = 2./(dimensions[i] + dimensions[i-1])
+        params = params +  random_state.uniform(-bound, bound, params_len).tolist()
+
+    # params = np.random.randn(params_count(dimensions))
+
+    velocities = np.zeros_like(params)
+
+    # print(params)
 
     for i in range(max_iteration):
         
@@ -91,9 +108,11 @@ def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000):
 
         ofs = end
 
-
         cost, grad = forward_backward_prop(_X, _y, params, dimensions)
-        params = params - alpha*grad
+        updates = momentum*velocities - alpha*grad
+        velocities = updates
+        params = params + updates
+
         # r = abs((last_cost-cost)/last_cost)
         # if r < d:
         #     break
@@ -134,7 +153,7 @@ def unpack_parmas(params, dimensions):
     return W1, b1, W2, b2
 
 
-def random_params(dimensions):
+def params_count(dimensions):
     """Init the weights and bias randomly
 
     Aruguments:
@@ -148,8 +167,7 @@ def random_params(dimensions):
     for i in range(1, len(dimensions)):
         params_len += (dimensions[i - 1] + 1) * dimensions[i]
     
-    params = np.random.randn(params_len, )
-    return params
+    return params_len
 
 def ann_test():
     """
@@ -165,7 +183,8 @@ def ann_test():
     for i in range(N):
         labels[i, random.randint(0,dimensions[2]-1)] = 1
 
-    params = random_params(dimensions)
+    params_len = params_count(dimensions)
+    params = np.random.randn(params_len)
 
     assert gradcheck(lambda params:
         forward_backward_prop(data, labels, params, dimensions), params)
