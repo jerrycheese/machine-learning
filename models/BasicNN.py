@@ -7,9 +7,12 @@ import sklearn
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
-class NN(object):
+from utils import *
 
-    def __init(self, hidden_layer_sizes):
+
+class BasicNN(object):
+
+    def __init(self, hidden_layers=(2,)):
         pass
 
     def fit(self, X, y, alpha=0.001, max_iteration=10000):
@@ -20,12 +23,10 @@ class NN(object):
 
     def show(self):
         pass
-    
 
 
 
-
-def main(argv):
+def _main(argv):
     args = parser.parse_args(argv[1:])
 
 
@@ -43,7 +44,7 @@ def main(argv):
     data, data_cv = data_raw[:cv_size], data_raw[cv_size:]
 
     # train
-    clf = NN(10)
+    clf = BasicNN(10)
     clf.fit(data.drop(columns=['type'], axis=1), data['type'])
 
     # evaluate
@@ -58,4 +59,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument('-f', '--file', type=str, help='data file, only for csv')
     
-    main(sys.argv)
+    _main(sys.argv)
