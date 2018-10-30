@@ -48,7 +48,6 @@ def forward_backward_prop(X, labels, params, dimensions):
 
     penalty = 0.00001
     cost += penalty*(np.power(W1, 2).sum() + np.power(W2, 2).sum())/(2*M)
-
     # backward
 
     # layer3 -> layer2
@@ -72,14 +71,13 @@ def forward_backward_prop(X, labels, params, dimensions):
     return cost, grad
 
 
-def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=1):
+def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=0,tol=1e-10):
     # d = 1e-8
     notice_len = 1000
+
     last_cost = 99999999
 
     batch_size = min(batch_size, X.shape[0])
-
-    max_iteration = int(X.shape[0]*epoch/batch_size)
 
     ofs = 0
 
@@ -96,30 +94,30 @@ def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=
 
     # print(params)
 
-    for i in range(max_iteration):
+    loss = []
+
+    for i in range(epoch):
         
-        begin, end = ofs, (ofs+batch_size)%X.shape[0]
+        sum_cost = 0
+        for batch_slice in _gen_batches(X.shape[0], batch_size):
+            _X, _y = X[batch_slice], labels[batch_slice]
+            cost, grad = forward_backward_prop(_X, _y, params, dimensions)
 
-        if begin < end:
-            _X, _y = X[begin:end, :], labels[begin:end, :]
-        else:
-            _X = np.vstack((X[begin:, :],X[:end,:]))
-            _y = np.vstack((labels[begin:, :],labels[:end,:]))
+            # apply gradients
+            updates = momentum*velocities - alpha*grad
+            velocities = updates
+            params = params + updates
 
-        ofs = end
-
-        cost, grad = forward_backward_prop(_X, _y, params, dimensions)
-        updates = momentum*velocities - alpha*grad
-        velocities = updates
-        params = params + updates
-
+            sum_cost += cost * (batch_slice.stop - batch_slice.start)
+        sum_cost /= X.shape[0]
+        loss.append(sum_cost)
         # r = abs((last_cost-cost)/last_cost)
         # if r < d:
         #     break
         if (i + 1)%notice_len == 0:
-            print('Iteration {:d}, cost = {:f}'.format(i+1, cost))
+            print('Iteration {:d}, cost = {:f}'.format(i+1, sum_cost))
         # last_cost = cost
-
+    print(loss[-10:])
     return params
 
 
@@ -133,7 +131,10 @@ def predict(X, params, dimensions):
 
     z2 = np.dot(h, W2) + b2
     y = softmax(z2)
-    y = (y==y.max(axis=0)).astype(np.int64)
+    y = y.argmax(axis=1)
+    n_label = np.max(y) + 1
+    y = np.eye(n_label,dtype=np.int64)[y]
+    
     return y
 
 def unpack_parmas(params, dimensions):
@@ -191,6 +192,20 @@ def ann_test():
     
     print("Success!!\n")
 
+
+def _gen_batches(n, batch_size):
+    """Generator to create slices containing batch_size elements, from 0 to n.
+    The last slice may contain less than batch_size elements, when batch_size
+    does not divide n.
+    --------
+    """
+    start = 0
+    for _ in range(int(n // batch_size)):
+        end = start + batch_size
+        yield slice(start, end)
+        start = end
+    if start < n:
+        yield slice(start, n)
 
 if __name__ == "__main__":
     ann_test()
