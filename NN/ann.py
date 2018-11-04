@@ -8,7 +8,7 @@ from sigmoid import sigmoid, sigmoid_grad
 from gradcheck import gradcheck
 
 
-def forward_backward_prop(X, labels, params, dimensions):
+def _forward_backward_prop(X, labels, params, dimensions, penalty=0.001):
     """One hidden layer only
 
     Arguments:
@@ -18,17 +18,13 @@ def forward_backward_prop(X, labels, params, dimensions):
     dimensions -- A tuple of input dimension, number of hidden units
                   and output dimension
     """
-
     assert len(dimensions) == 3
     
     W1, b1, W2, b2 = unpack_parmas(params, dimensions)
-    
-    # forward
-
-    # I put bias weight at the first column of W1, W2
-    # meanwhile, put the `1` cell at the first position in every layers.
 
     M = X.shape[0]
+    
+    # ***** FORWORD PASS
 
     # forward
     # layer1 -> layer2
@@ -38,28 +34,31 @@ def forward_backward_prop(X, labels, params, dimensions):
     # layer2 -> layer3
     z2 = np.dot(h, W2) + b2
 
-    # ** STYLE1
+    # ** OUTPUT WITH SIGMOID
     # y = sigmoid(z2)
     # cost = (-labels*np.log(y) - (1-labels)*np.log(1-y)).sum()/M
 
-    # ** STYLE2
+    # ** OUTPUT WITH SOFTMAX
     y = softmax(z2)
     cost = (-labels*np.log(y)).sum()/M
 
-    penalty = 0.00001
+    # regularation
     cost += penalty*(np.power(W1, 2).sum() + np.power(W2, 2).sum())/(2*M)
-    # backward
+
+    # ****** BACKPROP
+    # layer3
+    d3 = (y - labels)/M
+
 
     # layer3 -> layer2
     # ∂cost/∂z2  shape=(M,Dy)
-    d3 = (y - labels)/M
     gradW2 = np.dot(np.transpose(h), d3)
     gradW2 += W2*penalty/M
     gradb2 = d3.sum(axis=0)
+    d2 = np.dot(d3, np.transpose(W2)) * sigmoid_grad(h)
 
     # layer2 -> layer3
     # ∂cost/∂h shape=(M,H)
-    d2 = np.dot(d3, np.transpose(W2)) * sigmoid_grad(h)
     gradW1 = np.dot(np.transpose(X), d2)
     gradW1 += W1*penalty/M
     gradb1 = d2.sum(axis=0)
@@ -71,37 +70,33 @@ def forward_backward_prop(X, labels, params, dimensions):
     return cost, grad
 
 
-def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=0,tol=1e-10):
-    # d = 1e-8
-    notice_len = 1000
+def train(X, labels, dimensions, 
+        alpha=0.1, 
+        batch_size=10, 
+        epoch=1000, 
+        momentum=0,tol=1e-10,
+        verbose=False):
+    """Train neural network with one hidden layer only
 
-    last_cost = 99999999
+    Arguments:
+    X -- M x Dx matrix, where each row is a training example x.
+    labels -- M x Dy matrix, where each row is a one-hot vector.
+    params -- Model parameters, these are unpacked for you.
+    dimensions -- A tuple of input dimension, number of hidden units
+                  and output dimension
+    """
+    assert len(dimensions) == 3
 
     batch_size = min(batch_size, X.shape[0])
-
-    ofs = 0
-
-    params = []
-    random_state = np.random.RandomState(1)
-    for i in range(1, len(dimensions)):
-        params_len = (dimensions[i-1] + 1) * dimensions[i]
-        bound = 2./(dimensions[i] + dimensions[i-1])
-        params = params +  random_state.uniform(-bound, bound, params_len).tolist()
-
-    # params = np.random.randn(params_count(dimensions))
-
+    params = np.random.randn(params_count(dimensions))
     velocities = np.zeros_like(params)
-
-    # print(params)
-
     loss = []
 
     for i in range(epoch):
-        
         sum_cost = 0
         for batch_slice in _gen_batches(X.shape[0], batch_size):
             _X, _y = X[batch_slice], labels[batch_slice]
-            cost, grad = forward_backward_prop(_X, _y, params, dimensions)
+            cost, grad = _forward_backward_prop(_X, _y, params, dimensions)
 
             # apply gradients
             updates = momentum*velocities - alpha*grad
@@ -109,17 +104,17 @@ def train(X, labels, dimensions, alpha=0.1, batch_size=10, epoch=1000, momentum=
             params = params + updates
 
             sum_cost += cost * (batch_slice.stop - batch_slice.start)
+        
         sum_cost /= X.shape[0]
         loss.append(sum_cost)
-        # r = abs((last_cost-cost)/last_cost)
-        # if r < d:
-        #     break
-        if (i + 1)%notice_len == 0:
-            print('Iteration {:d}, cost = {:f}'.format(i+1, sum_cost))
-        # last_cost = cost
-    print(loss[-10:])
-    return params
 
+        if i > 2 and loss[i] - loss[i-1] > -tol and loss[i-1] - loss[i-2] > -tol:
+            break
+
+        if verbose:
+            print('Iteration {:d}, cost = {:f}'.format(i+1, sum_cost))
+
+    return params
 
 def predict(X, params, dimensions):
     assert len(dimensions) == 3
@@ -188,7 +183,7 @@ def ann_test():
     params = np.random.randn(params_len)
 
     assert gradcheck(lambda params:
-        forward_backward_prop(data, labels, params, dimensions), params)
+        _forward_backward_prop(data, labels, params, dimensions), params)
     
     print("Success!!\n")
 

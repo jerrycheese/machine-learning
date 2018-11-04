@@ -4,8 +4,14 @@ import numpy as np
 def gen_batches(n, batch_size):
     """Generator to create slices containing batch_size elements, from 0 to n.
     The last slice may contain less than batch_size elements, when batch_size
-    does not divide n.
-    --------
+    does not divide n
+
+    Parameters:
+    n -- the size of datasets
+    batch_size --
+
+    Return:
+    yield slice 
     """
     start = 0
     for _ in range(int(n // batch_size)):
