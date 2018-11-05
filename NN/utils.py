@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 def gen_batches(n, batch_size):
@@ -56,3 +57,15 @@ def params_pack(params):
         one = p.flatten()
         one_dims.append(one)
     return np.concatenate(one_dims)
+
+
+def plot_loss(loss, nums=1):
+    nums = 1 if not nums else nums
+    if nums == 1:
+        loss = [loss]
+    colors = ['red', 'black']
+    for i in range(nums):
+        data = loss[i]
+        plt.plot(range(len(data)), data,color=colors[i])
+        
+    plt.show()

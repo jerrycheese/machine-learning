@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import ann
-import csv
-import time
+
+import ann, csv, time, utils
 from NN import NeuralNetwork
 
 from sklearn.metrics import classification_report
@@ -33,8 +32,9 @@ scaler = lambda x: (x-np.mean(x))/(np.max(x)-np.min(x))
 data[['f1','f2','f3','f4']] = data[['f1','f2','f3','f4']].apply(scaler)
 
 # split dataset
-cv_size = int(data_raw.shape[0] * 0.2)
+cv_size = int(data_raw.shape[0] * 0)
 data, data_cv = data[cv_size:], data[:cv_size]
+
 
 X, y = get_X_labels(data)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
@@ -62,13 +62,15 @@ def my_solution2(X_train, X_test, y_train, y_test, hyperparams=None):
         hyperparams = {
             'hidden_layer_sizes':(3, ),
             'learning_rate':0.1, 
-            'batch_size':50,
-            'epoch':3472,
+            'epoch':3852,
             'momentum':0.04,
-            'tol': 1e-10
+            'tol': 1e-10,
+            'reg_coef': 0
         }
     
-    hyperparams['batch_size'] = 50
+    if not hasattr(hyperparams, 'batch_size'):
+        hyperparams['batch_size'] = X_train.shape[0]
+
     # train with self
     nn = NeuralNetwork(**hyperparams)
     nn.fit(X_train, y_train)
@@ -87,8 +89,8 @@ def sklearn_solution(X_train, X_test, y_train, y_test):
     clf = MLPClassifier(solver='sgd', activation='logistic', 
         hidden_layer_sizes=(3, ),
         learning_rate_init=0.1,
-        batch_size=50,
-        max_iter=3472,
+        batch_size=X_train.shape[0],
+        max_iter=3852,
         shuffle=False,
         tol=1e-10,
         momentum=0.04,
@@ -107,17 +109,14 @@ def sklearn_solution(X_train, X_test, y_train, y_test):
 
     return clf, y_pred, y_test
 
-my_solution(X_train, X_test, y_train, y_test)
-my_solution2(X_train, X_test, y_train, y_test)
-sklearn_solution(X_train, X_test, y_train, y_test)
 
 def found_best_params(func, history_file='./hyperparams_history.csv', try_times=5):
     hyperparam_try_list = {
-        'learning_rate': [0.01, 0.1, 0.5, 1, 2, 3, 4, 5],
-        'epoch' : np.arange(1000, 8000, 1000),
-        'reg_coef': np.arange(0, 2, 0.5),
-        'momentum': np.arange(0, 1.2, 0.2),
-        'hidden_layer_sizes': [(n, ) for n in range(3, 15, 2)] + [(n, m) for n in range(2, 10, 3) for m in range(2, 10, 3)]
+        'learning_rate': [0.01, 0.1, 1, 2],
+        'epoch' : [555, 1382, 2582, 3852],
+        'reg_coef': [0],
+        'momentum': [0.04, 0, 1],
+        'hidden_layer_sizes': [(3,), (5, )]
     }
 
     max_iter, params_index = 1, {}
@@ -185,7 +184,40 @@ def found_best_params(func, history_file='./hyperparams_history.csv', try_times=
                     break
                 passed_k.append(k)
 
-# found_best_params(my_solution2,history_file='NN_hyperparams.csv',try_times=7)
+
+def hyperparams_analyze(history_file='./hyperparams_history.csv'):
+    data = pd.read_csv(history_file)
+    data = data.drop(columns=['reg_coef'])
+
+    learning_rate = list(set(data['learning_rate']))
+    epoch_set = list(set(data['epoch']))
+    momentum_set = list(set(data['momentum']))
+    hidden_layer_sizes_set = list(set(data['hidden_layer_sizes']))
+
+    # learning rate
+    rows = data[
+        (data['learning_rate']==learning_rate[1]) & 
+        (data['epoch']==epoch_set[0]) & 
+        (data['momentum']==momentum_set[1])
+        # & (data['hidden_layer_sizes']==hidden_layer_sizes_set[0])
+    ]
+    plt.plot(rows['hidden_layer_sizes'], rows['fbeta_score'])
+    plt.show()
+
+
+
+
+
+# found_best_params(my_solution2,history_file='NN_hyperparams.csv',try_times=10)
 
 # found_best_params(sklearn_solution,history_file='sklearn_hyperparams.csv',try_times=7)
 
+
+# my_solution(X_train, X_test, y_train, y_test)
+# clf1,foo,bar = my_solution2(X_train, X_test, y_train, y_test)
+# clf2,foo,bar = sklearn_solution(X_train, X_test, y_train, y_test)
+
+
+# utils.plot_loss(clf1.loss_)
+# utils.plot_loss([clf1.loss_, clf2.loss_curve_], 2)
+hyperparams_analyze(history_file='NN_hyperparams.csv')

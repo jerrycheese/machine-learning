@@ -160,7 +160,7 @@ class NeuralNetwork(object):
                 deltas[i] = np.dot(deltas[i + 1], W[i].T)
                 deltas[i] *= sigmoid_grad(activations[i])
             regularation += np.power(W[i], 2).sum()
-        
+    
         regularation *= self.reg_coef/(2*m)
 
         loss += regularation
@@ -173,7 +173,7 @@ class NeuralNetwork(object):
         return X, y
 
     def _validate_hyperparams(self,X, y):
-        if not (0 < self.batch_size < X.shape[0]):
+        if not (0 < self.batch_size <= X.shape[0]):
             raise Exception('Batch size must integer and gt 0 and lt the number of samples, but {} got'.format(str(self.batch_size)))
 
         if len(self.hidden_layer_sizes) == 0:
