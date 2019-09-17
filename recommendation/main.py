@@ -2,14 +2,31 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import argparse, code, utils
-import models.Recommendation as model_recomm
+import argparse, code
+import Recommendation as model_recomm
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_steps', default=1000, type=int, help='number of trannig steps')
+parser.add_argument('--train', required=True, type=str, help='training data')
+parser.add_argument('--method', default='mf', type=str, help='recommend method. mf, cf')
 
-def get_ratings(file='data/ratings_4055.csv'):
+
+def split_test_set(df, frac=0.3, random=True):
+    """
+    Split DataFrame to train set and test set
+    :param df:
+    :param frac:
+    :param random:
+    :return:
+    """
+    test_size = int(len(df) * min(frac, 1))
+    if random:
+        df = df.sample(frac=1).reset_index(drop=True)
+    return df[test_size:].reset_index(drop=True), df[:test_size].reset_index(drop=True)
+
+
+def get_ratings(file):
     df = pd.read_csv(file, header=None, names=['item', 'user', 'rating', 'date'])
     return df
 
@@ -100,21 +117,23 @@ def hide_rating(data, frac=0.3):
 def main(argv):
     args = parser.parse_args(argv[1:])
 
-    # train_set, test_set = utils.split_test_set(get_ratings(), frac=0.3, random=True)
+    # train_set, test_set = split_test_set(get_ratings(), frac=0.3, random=True)
     # data = get_ratings('data/ratings_test.csv')
-    data = get_ratings()
+    data = get_ratings(args.train)
 
     # data = hide_rating(data, frac=0.3)
     k, pred_user, pred_item = 10, '140756691', ''
-
-    # item_based = model_recomm.ItemBased(data)
-    # recommend_list = item_based.top_k(user=pred_user, k=k, sim_fn=item_based.sim_cos)
-
-    model = train_mf(data, num_steps=args.num_steps)
-    recommend_list = model.top_k(user=pred_user, k=k)
+    
+    if args.method == 'cf':
+        item_based = model_recomm.ItemBased(data)
+        recommend_list = item_based.top_k(user=pred_user, k=k, sim_fn=item_based.sim_cos)
+    elif args.method == 'mf':
+        model = train_mf(data, num_steps=args.num_steps)
+        recommend_list = model.top_k(user=pred_user, k=k)
+    else:
+        raise Exception('Unsupport method %s' % args.method)
 
     # 140756691
-
     print(recommend_list)
 
     # print(item_based.predict('用户1', '图书2', item_based.sim_cos))

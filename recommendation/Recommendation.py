@@ -1,4 +1,4 @@
-from tensorflow.python.estimator import estimator
+from tensorflow.estimator import Estimator
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ class ColumnNotFoundError(Exception):
         return repr('Can not found column `{}`'.format(self.value))
 
 
-class ItemBased(estimator.Estimator):
+class ItemBased(Estimator):
 
 
     def __init__(self, data):
@@ -173,7 +173,7 @@ class ItemBased(estimator.Estimator):
         self.predictions = {}
 
 
-class MatrixFactorizationEstimator(estimator.Estimator):
+class MatrixFactorizationEstimator(Estimator):
 
     def __init__(self, R_shape, num_features, model_dir=None, config=None, warm_start_from=None):
 
@@ -247,6 +247,10 @@ class MatrixFactorizationEstimator(estimator.Estimator):
             warm_start_from=warm_start_from)
 
     def top_k(self, user, k):
+        """ It is hard to make prediction for all book 
+        So we predict the rating of first 3 user to first 5 book
+        
+        """
         data = {'user_index': [], 'item_index': []}
         for ui in range(3):
             for ti in range(5):
@@ -262,6 +266,6 @@ class MatrixFactorizationEstimator(estimator.Estimator):
         res = []
         for e in self.predict(input_fn):
             res.append(e)
-            print(e)
+            # print(e)
         return res
 
