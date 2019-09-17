@@ -59,13 +59,11 @@ def params_pack(params):
     return np.concatenate(one_dims)
 
 
-def plot_loss(loss, nums=1):
+def plot_loss(loss, nums=1, colors=['red', 'black', 'green']):
     nums = 1 if not nums else nums
     if nums == 1:
         loss = [loss]
-    colors = ['red', 'black']
     for i in range(nums):
         data = loss[i]
-        plt.plot(range(len(data)), data,color=colors[i])
-        
+        plt.plot(range(len(data)), data, color=colors[i])
     plt.show()

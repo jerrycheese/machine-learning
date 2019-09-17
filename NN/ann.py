@@ -1,5 +1,9 @@
-#!/usr/bin/env python
+"""
+Process oriented implementation of Single layer Feedforward Neural Network
 
+@author: Jerry
+@date: Nov 4, 2018
+"""
 import numpy as np
 import random
 
@@ -9,14 +13,21 @@ from gradcheck import gradcheck
 
 
 def _forward_backward_prop(X, labels, params, dimensions, penalty=0.001):
-    """One hidden layer only
+    """ One hidden layer only
+
+    Features:
+    Use sigmoid as activation function
+    Use L2 penalty term
+    Use Cross Entropy Loss
 
     Arguments:
-    X -- M x Dx matrix, where each row is a training example x.
-    labels -- M x Dy matrix, where each row is a one-hot vector.
-    params -- Model parameters, these are unpacked for you.
-    dimensions -- A tuple of input dimension, number of hidden units
-                  and output dimension
+    X -- (M, Dx) matrix, where `M` is training size, `Dx` is features size.
+    labels -- (M, Dy) matrix, where `Dy` is nums of labels.
+    params -- (N, ) vector, where `N` is total nums of parameters of ANN.
+    dimensions -- A tuple of (input dimension, number of hidden units
+                  , output dimension)
+
+    return -- loss, gradients
     """
     assert len(dimensions) == 3
     
@@ -36,14 +47,14 @@ def _forward_backward_prop(X, labels, params, dimensions, penalty=0.001):
 
     # ** OUTPUT WITH SIGMOID
     # y = sigmoid(z2)
-    # cost = (-labels*np.log(y) - (1-labels)*np.log(1-y)).sum()/M
+    # loss = (-labels*np.log(y) - (1-labels)*np.log(1-y)).sum()/M
 
     # ** OUTPUT WITH SOFTMAX
     y = softmax(z2)
-    cost = (-labels*np.log(y)).sum()/M
+    loss = (-labels*np.log(y)).sum()/M
 
     # regularation
-    cost += penalty*(np.power(W1, 2).sum() + np.power(W2, 2).sum())/(2*M)
+    loss += penalty*(np.power(W1, 2).sum() + np.power(W2, 2).sum())/(2*M)
 
     # ****** BACKPROP
     # layer3
@@ -67,8 +78,7 @@ def _forward_backward_prop(X, labels, params, dimensions, penalty=0.001):
     grad = np.concatenate((gradW1.flatten(), gradb1.flatten(),
         gradW2.flatten(), gradb2.flatten()))
 
-    return cost, grad
-
+    return loss, grad
 
 def train(X, labels, dimensions, 
         alpha=0.1, 
@@ -96,14 +106,14 @@ def train(X, labels, dimensions,
         sum_cost = 0
         for batch_slice in _gen_batches(X.shape[0], batch_size):
             _X, _y = X[batch_slice], labels[batch_slice]
-            cost, grad = _forward_backward_prop(_X, _y, params, dimensions)
+            loss, grad = _forward_backward_prop(_X, _y, params, dimensions)
 
             # apply gradients
             updates = momentum*velocities - alpha*grad
             velocities = updates
             params = params + updates
 
-            sum_cost += cost * (batch_slice.stop - batch_slice.start)
+            sum_cost += loss * (batch_slice.stop - batch_slice.start)
         
         sum_cost /= X.shape[0]
         loss.append(sum_cost)
@@ -112,7 +122,7 @@ def train(X, labels, dimensions,
             break
 
         if verbose:
-            print('Iteration {:d}, cost = {:f}'.format(i+1, sum_cost))
+            print('Iteration {:d}, loss = {:f}'.format(i+1, sum_cost))
 
     return params
 
@@ -147,7 +157,6 @@ def unpack_parmas(params, dimensions):
     b2 = np.reshape(params[ofs:ofs + Dy], (1, Dy))
 
     return W1, b1, W2, b2
-
 
 def params_count(dimensions):
     """Init the weights and bias randomly
@@ -185,8 +194,7 @@ def ann_test():
     assert gradcheck(lambda params:
         _forward_backward_prop(data, labels, params, dimensions), params)
     
-    print("Success!!\n")
-
+    print("Success!!")
 
 def _gen_batches(n, batch_size):
     """Generator to create slices containing batch_size elements, from 0 to n.

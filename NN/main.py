@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -34,7 +36,6 @@ data[['f1','f2','f3','f4']] = data[['f1','f2','f3','f4']].apply(scaler)
 # split dataset
 cv_size = int(data_raw.shape[0] * 0)
 data, data_cv = data[cv_size:], data[:cv_size]
-
 
 X, y = get_X_labels(data)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
@@ -205,19 +206,16 @@ def hyperparams_analyze(history_file='./hyperparams_history.csv'):
     plt.show()
 
 
-
-
-
 # found_best_params(my_solution2,history_file='NN_hyperparams.csv',try_times=10)
 
 # found_best_params(sklearn_solution,history_file='sklearn_hyperparams.csv',try_times=7)
 
 
 # my_solution(X_train, X_test, y_train, y_test)
-# clf1,foo,bar = my_solution2(X_train, X_test, y_train, y_test)
-# clf2,foo,bar = sklearn_solution(X_train, X_test, y_train, y_test)
+clf1,foo,bar = my_solution2(X_train, X_test, y_train, y_test)
+clf2,foo,bar = sklearn_solution(X_train, X_test, y_train, y_test)
 
 
-# utils.plot_loss(clf1.loss_)
-# utils.plot_loss([clf1.loss_, clf2.loss_curve_], 2)
-hyperparams_analyze(history_file='NN_hyperparams.csv')
+utils.plot_loss(clf1.loss_)
+utils.plot_loss([clf1.loss_, clf2.loss_curve_], 2, colors=['red', 'black'])
+# hyperparams_analyze(history_file='NN_hyperparams.csv')

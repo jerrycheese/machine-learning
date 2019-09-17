@@ -1,3 +1,10 @@
+"""
+Object oriented implementation of Nerual NeuralNetwork
+
+@author: Jerry
+@date: Nov 5, 2018
+"""
+
 import numpy as np
 from utils import gen_batches, params_unpack, params_pack
 from sigmoid import sigmoid, sigmoid_grad

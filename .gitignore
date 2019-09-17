@@ -1,4 +1,23 @@
-.DS_Store
-.idea
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# pyenv
 .python-version
-__pycache__
+
+# For mac
+.DS_Store
+
+# Environments
+.env
+.idea
+.vscode
+
+# output data
+out/
+
+# IDE or editor
+.idea
+.vscode
