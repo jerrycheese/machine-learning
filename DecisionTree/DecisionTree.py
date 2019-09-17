@@ -1,9 +1,16 @@
+"""
+Decision Tree with drawing
+
+@author: Jerry
+@date: Oct 25, 2018
+"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 import math
 import random
 
-class RandomForest(object):
+class DecisionTree(object):
     
     def __init__(self):
         self.__root = None
@@ -336,29 +343,3 @@ class RandomForest(object):
         node['children'] = children
         return node
  
-
-def main(argv):
-    args = parser.parse_args(argv[1:])
-
-    import pandas as pd
-    import json
-
-    data = pd.read_csv(args.file)
-    data = np.array(data)
-    X, y = data[:,1:-1].tolist(), data[:,-1].tolist()
-    
-
-    rf = RandomForest()
-    rf.train(X, y, ['outlook','temperature','humidity','wind'])
-
-    # print(json.dumps(root))
-    rf.plot()
-
-
-if __name__ == '__main__':
-    import sys, argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type=str, help='data file, only for csv')
-    
-    main(sys.argv)
