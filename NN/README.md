@@ -1,5 +1,7 @@
 Neural Network implementations
 
+See: https://www.hijerry.cn/p/53364.html
+
 ## Requirements
 
 * numpy 1.16.5
