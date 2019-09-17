@@ -1,10 +1,24 @@
+"""
+Linear Regression
+
+See: https://www.hijerry.cn/p/26959.html
+
+Usage:
+python linear_regre.py
+
+Arguments:
+
+--method: fit_linear_model, fit_estimator, fit_custom_estimator
+
+@author: Jerry
+@date: Aug 16, 2018
+"""
+
 import tensorflow as tf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
-
-from utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_size', default=50, type=int, help='data size')
@@ -12,6 +26,21 @@ parser.add_argument('--num_steps', default=1000, type=int, help='number of trann
 parser.add_argument('--devi_degree', default=10, type=int, help='Degree of deviation in stand linear data')
 parser.add_argument('--alpha', default=0.00001, type=float, help='learning rate of gradient decent')
 parser.add_argument('--method', default='fit_linear_model', type=str, help='the method to train')
+
+
+def split_test_set(df, frac=0.3, random=True):
+    """
+    Split DataFrame to train set and test set
+    :param df:
+    :param frac:
+    :param random:
+    :return:
+    """
+    test_size = int(len(df) * min(frac, 1))
+    if random:
+        df = df.sample(frac=1).reset_index(drop=True)
+    return df[test_size:].reset_index(drop=True), df[:test_size].reset_index(drop=True)
+
 
 def linear_data(data_size, devi_degree):
     """
@@ -25,6 +54,7 @@ def linear_data(data_size, devi_degree):
     y = 3 * x + 0.6
 
     # make deviation
+    np.random.seed(13)
     y += np.random.randn(data_size) * devi_degree
 
     data = pd.DataFrame({'x': x, 'y': y})
